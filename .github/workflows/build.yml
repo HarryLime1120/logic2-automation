@@ -1,8 +1,4 @@
-# This is a basic workflow to help you get started with Actions
-
-name: CI
-
-# Controls when the workflow will run
+name: Publish GitHub Pages
 on:
   # Triggers the workflow on push or pull request events but only for the "master" branch
   push:
@@ -17,21 +13,28 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
       
-      - name: Build .whl
+      - name: Build .tar.gz (sdist)
         run: |
           cd python
           python -m pip install --upgrade build
-          python -m build
-          cp dist/*.whl docs/source/_static
+          python -m build --sdist
+          cp dist/*.tar.gz docs/source/_static
 
       - name: Build docs
         run: |
-          cd python/docs
+          # Build GRPC files - they are required for generating the docs.
+          cd python
           python -m pip install -r requirements.txt
-          make html
+          python grpc_build_hook.py
+
+          cd docs
+          python -m pip install -r requirements.txt
+
+          # Configure SPHINXOPTS to treat warnings as errors
+          make html SPHINXOPTS='-W'
+
           touch build/html/.nojekyll
 
       - name: Publish docs to gh-pages branch
